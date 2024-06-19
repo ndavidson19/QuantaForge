@@ -2,3 +2,8 @@ polars
 kafka
 pytest
 Cython
+unittest
+numpy
+ib_insync
+confluent_kafka
+sqlite3
