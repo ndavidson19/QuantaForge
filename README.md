@@ -51,4 +51,3 @@ strategy.run()
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
-```
