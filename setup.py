@@ -3,7 +3,7 @@ import numpy as np
 
 setup(
     name='quantaforge',
-    version='0.1.2',
+    version='0.1.3',
     author='Nicholas Davidson',
     author_email='nrddodger@gmail.com',
     description='A comprehensive library for creating and backtesting trading strategies.',
