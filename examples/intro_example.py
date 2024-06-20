@@ -1,21 +1,3 @@
-# Quantaforge
-
-Quantaforge is a comprehensive library for creating and backtesting trading strategies.
-
-## Features
-
-- Define custom trading strategies using various indicators, signals, and risk management techniques.
-- Backtest strategies with historical data.
-- Optimize strategy parameters.
-- Generate detailed performance reports.
-
-## Installation
-```bash
-pip install quantaforge
-```
-
-## Usage
-```python
 import quantaforge as qf
 
 # Create a new strategy
@@ -58,7 +40,3 @@ strategy.add_report(report)
 # Run the strategy
 strategy.run()
 strategy.report.generate()
-```
-
-## License
-[MIT](https://choosealicense.com/licenses/mit/)

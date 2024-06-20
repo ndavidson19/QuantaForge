@@ -16,10 +16,42 @@ class Strategy:
         self.backtest = None
         self.optimizer = None
         self.report = None
+        self.models = []
+        self.parameters = {}
 
     def add_indicator(self, indicator):
         self.indicators.append(indicator)
+    
+    def add_signal(self, signal):
+        self.signals.append(signal)
 
+    def add_report(self, report):
+        self.report = report
+
+    def add_position(self, position):
+        self.positions.append(position)
+    
+    def add_risk_management(self, risk_management):
+        self.risk_management.append(risk_management)
+    
+    def add_portfolio(self, portfolio):
+        self.portfolio = portfolio
+    
+    def add_backtest(self, backtest):
+        self.backtest = backtest
+
+    def add_optimizer(self, optimizer):
+        self.optimizer = optimizer
+    
+    def add_report(self, report):
+        self.report = report
+    
+    def run(self):
+        logging.debug("Running strategy...")
+        if self.backtest:
+            return self.backtest.run()
+        return None
+        
     def add_model(self, model: Model):
         self.models.append(model)
 
@@ -35,10 +67,6 @@ class Strategy:
         logging.debug("Preprocessing data...")
         return data
 
-    def validate_signal(self, signal):
-        logging.debug(f"Validating signal: {signal}")
-        return True
-
     def combine_signals(self, signals_list):
         logging.debug(f"Combining signals: {signals_list}")
         combined_signals = pl.DataFrame()
@@ -47,16 +75,20 @@ class Strategy:
         return combined_signals
 
     def generate_signals(self, data):
-        '''
-        General method to generate signals based on the strategy
-        '''
         data = pl.DataFrame(data)
         logging.debug(f"Original data: {data}")
+        all_signals = []
         for indicator in self.indicators:
-            data = indicator(data)
-        logging.debug(f"Generated signals: {data}")
-        return data
-
+            data = indicator.calculate(data)
+        for signal in self.signals:
+            indicator_data = data.select(pl.col(signal.get_indicator_column_name()))
+            print(indicator_data)
+            signal_data = signal.generate(data, indicator_data)
+            all_signals.append(signal_data)
+        combined_signals = self.combine_signals(all_signals)
+        logging.debug(f"Generated signals: {combined_signals}")
+        return combined_signals
+    
 class MovingAverageStrategy(Strategy):
     def __init__(self, window):
         self.window = window

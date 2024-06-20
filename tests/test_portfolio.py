@@ -11,7 +11,7 @@ class MockOrderExecution(OrderExecution):
 class TestPortfolio(unittest.TestCase):
     def setUp(self):
         self.order_execution = MockOrderExecution()
-        self.portfolio = Portfolio(initial_cash=1000, order_execution=self.order_execution)
+        self.portfolio = Portfolio(name='TestPortfolio', initial_cash=1000, order_execution=self.order_execution)
 
     def test_buy(self):
         self.portfolio.buy('AAPL', 1, 100)
@@ -26,7 +26,7 @@ class TestPortfolio(unittest.TestCase):
 
     def test_value(self):
         self.portfolio.buy('AAPL', 1, 100)
-        current_prices = {'AAPL': 110}
+        current_prices = [110]  # Use list for current prices
         value = self.portfolio.value(current_prices)
         self.assertEqual(value, 1010)
 
