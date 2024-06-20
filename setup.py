@@ -25,7 +25,7 @@ setup(
         'numpy'
     ],
     install_requires=[
-        'scikit-learn',
+        'sklearn',
         'polars',
         'Cython',
         'numpy',
