@@ -1,21 +1,18 @@
 from setuptools import setup, find_packages, Extension
-from Cython.Build import cythonize
 import numpy as np
-
-extensions = [
-    Extension("quantaforge.cython_modules.cy_portfolio", ["quantaforge/cython_modules/cy_portfolio.pyx"]),
-    Extension("quantaforge.cython_modules.cy_strategy", ["quantaforge/cython_modules/cy_strategy.pyx"]),
-]
 
 setup(
     name='quantaforge',
-    version='0.1.0',
+    version='0.1.1',
     author='Nicholas Davidson',
     author_email='nrddodger@gmail.com',
     description='A comprehensive library for creating and backtesting trading strategies.',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    url='https://github.com/ndavidson/quantaforge',
+    url='https://github.com/ndavidson19/QuantaForge',
+    package_data = {
+        'quantaforge/cython_modules': ['cy_strategy.pyx','cy_portfolio.pyx'],
+    },
     packages=find_packages(),
     classifiers=[
         'Programming Language :: Python :: 3',
@@ -23,10 +20,17 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
+    setup_requires=[
+        'Cython',
+        'numpy'
+    ],
     install_requires=[
         'scikit-learn',
-        'polars'
+        'polars',
+        'Cython',
+        'numpy',
+        'ib_insync',
+        'confluent_kafka'
     ],
-    ext_modules=cythonize(extensions),
     include_dirs=[np.get_include()],
 )

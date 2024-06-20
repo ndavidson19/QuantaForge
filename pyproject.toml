@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel", "Cython", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantaforge"
+version = "0.1.1"
+description = "A comprehensive library for creating and backtesting trading strategies."
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "Nicholas Davidson", email = "nrddodger@gmail.com" }
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.6"
+dependencies = [
+    "scikit-learn",
+    "polars",
+    "Cython",
+    "numpy",
+    "ib_insync",
+    "confluent_kafka"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ndavidson19/QuantaForge"
