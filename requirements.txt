@@ -7,3 +7,4 @@ ib_insync
 confluent_kafka
 scipy
 pandas
+ibis
