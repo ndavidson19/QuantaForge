@@ -8,3 +8,4 @@ confluent_kafka
 scipy
 pandas
 ibis
+scikit-learn
