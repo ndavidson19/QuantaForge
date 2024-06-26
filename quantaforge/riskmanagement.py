@@ -1,5 +1,6 @@
 import numpy as np
-from dataclasses import dataclass
+import polars as pl
+from dataclasses import dataclass, replace
 
 @dataclass
 class RiskParameters:
@@ -26,8 +27,9 @@ class RiskManagementModule:
         return np.percentile(returns, (1 - confidence_level) * 100)
 
 class RiskManager:
-    def __init__(self, risk_params: RiskParameters):
-        self.risk_params = risk_params
+    def __init__(self, **kwargs):
+        default_params = RiskParameters()
+        self.risk_params = replace(default_params, **kwargs)
 
     def calculate_var(self, returns: np.array) -> float:
         """Calculate Value at Risk"""
@@ -65,7 +67,7 @@ class RiskManager:
         correlation = np.corrcoef(returns1, returns2)[0, 1]
         return abs(correlation) < self.risk_params.correlation_threshold
 
-    def apply_risk_limits(self, strategy: 'Strategy', data: pd.DataFrame) -> None:
+    def apply_risk_limits(self, strategy: 'Strategy', data: pl.DataFrame) -> None:
         """Apply risk limits to a strategy"""
         returns = data['close'].pct_change().dropna()
         

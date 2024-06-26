@@ -1,6 +1,6 @@
 import polars as pl
 from typing import Dict, Any
-from quantaforge.generics import Signal
+from quantaforge.generics import Signal, Condition
 
 class CrossOverSignal(Signal):
     def __init__(self, fast_indicator: str, slow_indicator: str):
@@ -34,6 +34,13 @@ class CrossOverSignal(Signal):
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> 'CrossOverSignal':
         return cls(fast_indicator=config['fast_indicator'], slow_indicator=config['slow_indicator'])
+    
+    def get_entry_condition(self) -> 'Condition':
+        return Condition(f"{self.name}_buy", '==', 1)
+
+    def get_exit_condition(self) -> 'Condition':
+        return Condition(f"{self.name}_sell", '==', 1)
+
 
 class ThresholdSignal(Signal):
     def __init__(self, indicator: str, buy_threshold: float, sell_threshold: float):

@@ -7,7 +7,20 @@ class Condition:
     indicator: str
     operator: str
     value: Union[float, str]
-
+    def evaluate(self, data: dict) -> bool:
+        op_map = {
+            '>': operator.gt,
+            '<': operator.lt,
+            '==': operator.eq,
+            '!=': operator.ne,
+            '>=': operator.ge,
+            '<=': operator.le
+        }
+        if self.indicator not in data:
+            return False
+        actual_value = data[self.indicator]
+        return op_map[self.operator](actual_value, self.value)
+    
 class ConditionBuilder:
     def __init__(self, indicator: str):
         self.indicator = indicator
@@ -36,37 +49,3 @@ class ConditionEvaluator:
             '<=': operator.le
         }
         return op_map[condition.operator](data[condition.indicator], condition.value)
-
-class Strategy:
-    # ... (other methods)
-
-    def add_entry_condition(self, condition: Condition):
-        self.entry_conditions.append(condition)
-
-    def add_exit_condition(self, condition: Condition):
-        self.exit_conditions.append(condition)
-
-    def entry_rule(self, func: Callable[['Strategy'], List[Condition]]):
-        self.entry_conditions = func(self)
-
-    def exit_rule(self, func: Callable[['Strategy'], List[Condition]]):
-        self.exit_conditions = func(self)
-
-# Usage example:
-strategy = Strategy("MyStrategy")
-sma_fast = ConditionBuilder("SMA_10")
-sma_slow = ConditionBuilder("SMA_30")
-
-@strategy.entry_rule
-def entry(s):
-    return [
-        sma_fast.above(sma_slow),
-        ConditionBuilder("RSI").below(30)
-    ]
-
-@strategy.exit_rule
-def exit(s):
-    return [
-        sma_fast.below(sma_slow),
-        ConditionBuilder("RSI").above(70)
-    ]

@@ -58,6 +58,9 @@ class RSI(Indicator):
         loss = -delta.clip(upper_bound=0).rolling_mean(self.window)
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
+
+        rsi = rsi.fill_null(None, strategy='forward')
+
         return data.with_columns(rsi.alias(self.name))
 
     def to_dict(self) -> Dict[str, Any]:

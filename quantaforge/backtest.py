@@ -1,10 +1,12 @@
 import polars as pl
 import numpy as np
-from typing import Dict, Any, List, Union, Callable
+import logging
+from typing import Dict, Any, List, Union, Callable, Tuple
 from datetime import datetime
-from quantaforge.generics import Portfolio, StrategyBase
+from quantaforge.generics import Portfolio, StrategyBase, Position
 from quantaforge.order import Order, OrderType
 from quantaforge.performance_metrics import PerformanceMetrics
+from quantaforge.condition import Condition
 
 
 class PositionSizer:
@@ -95,7 +97,12 @@ class Backtest:
         self.equity_curve: List[float] = []
         self.position_sizer = position_sizer or PositionSizer.volatility_sizing
         self.risk_manager = risk_manager or AdvancedRiskManagement.calculate_var
-        
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(handler)
+
     def set_data(self, data: pl.DataFrame):
         self.data = data
         self._validate_data()
@@ -109,11 +116,17 @@ class Backtest:
     def run(self):
         if self.data is None:
             raise ValueError("Data must be set before running backtest")
+        self.logger.info("Starting backtest")
 
         # Calculate indicators
-        for indicator in self.strategy.indicators.values():
+        for name, indicator in self.strategy.indicators.items():
+            self.logger.debug(f"Calculating indicator: {name}")
             self.data = indicator.calculate(self.data)
-        
+
+        volatility = self.data['close'].std()
+        risk_per_trade = self.initial_capital * 0.01
+        returns = np.diff(self.data['close']) / self.data['close'][:-1]
+
         # Position sizing
         position_size = self.position_sizer(volatility, risk_per_trade, self.initial_capital)
 
@@ -121,7 +134,8 @@ class Backtest:
         var = self.risk_manager(returns)
 
         # Generate signals
-        signals = self.strategy.generate_signals(self.data)
+        signals = self.strategy._generate_signals(self.data)
+        self.logger.debug(f"Generated signals: {signals.columns}")
 
         # Combine data and signals
         self.data = self.data.hstack(signals)
@@ -132,12 +146,15 @@ class Backtest:
         # Run the backtest
         for row in self.data.iter_rows(named=True):
             self._process_bar(row)
+        self.logger.info(f"Backtest completed. Trades executed: {len(self.trades)}")
 
         self.calculate_performance_metrics()
+        return self.get_results()
 
     def _process_bar(self, row: Dict[str, Any]):
         timestamp = row['timestamp']
         symbol = row['symbol']
+        self.logger.debug(f"Processing bar: {timestamp} - {symbol}")
 
         # Update portfolio value
         self._update_portfolio_value(row)
@@ -146,14 +163,28 @@ class Backtest:
         self._process_pending_orders(row)
 
         # Check for exit signals
+        positions_to_close = []
         for position in self.portfolio.positions.values():
-            if self._check_exit_conditions(row, position.symbol):
-                self._place_order(symbol, -position.quantity, OrderType.MARKET, row)
+            exit_triggered, exit_reasons = self._check_exit_conditions(row, position.symbol)
+            if exit_triggered:
+                positions_to_close.append(position.symbol)
+                self.logger.debug(f"Exit signal triggered for {position.symbol}. Reasons: {exit_reasons}")
+
+        for symbol in positions_to_close:
+            if symbol in self.portfolio.positions:
+                self._place_order(symbol, -self.portfolio.positions[symbol].quantity, OrderType.MARKET, row)
 
         # Check for entry signals
-        if self._check_entry_conditions(row):
+        entry_triggered, entry_reasons = self._check_entry_conditions(row)
+        if entry_triggered:
+            self.logger.debug(f"Entry signal triggered for {symbol}. Reasons: {entry_reasons}")
             quantity = self._calculate_position_size(row)
-            self._place_order(symbol, quantity, OrderType.MARKET, row)
+            self.logger.debug(f"Calculated position size: {quantity}")
+            if quantity > 0:
+                self._place_order(symbol, quantity, OrderType.MARKET, row)
+            else:
+                self.logger.warning(f"Calculated position size is zero or negative: {quantity}")
+
 
         # Apply risk management
         for risk_rule in self.strategy.risk_management:
@@ -162,11 +193,21 @@ class Backtest:
         # Record equity
         self.equity_curve.append(self.portfolio.total_value)
 
-    def _check_entry_conditions(self, row: Dict[str, Any]) -> bool:
-        return all(condition.evaluate(row) for condition in self.strategy.entry_conditions)
+    def _check_entry_conditions(self, row: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        reasons = []
+        for condition in self.strategy.entry_conditions:
+            result = condition.evaluate(row)
+            reasons.append(f"{condition.indicator} {condition.operator} {condition.value}: {result}")
+        all_conditions_met = all(condition.evaluate(row) for condition in self.strategy.entry_conditions)
+        return all_conditions_met, reasons
 
-    def _check_exit_conditions(self, row: Dict[str, Any], symbol: str) -> bool:
-        return all(condition.evaluate(row) for condition in self.strategy.exit_conditions)
+    def _check_exit_conditions(self, row: Dict[str, Any], symbol: str) -> Tuple[bool, List[str]]:
+        reasons = []
+        for condition in self.strategy.exit_conditions:
+            result = condition.evaluate(row)
+            reasons.append(f"{condition.indicator} {condition.operator} {condition.value}: {result}")
+        all_conditions_met = all(condition.evaluate(row) for condition in self.strategy.exit_conditions)
+        return all_conditions_met, reasons
 
     def _calculate_position_size(self, row: Dict[str, Any]) -> int:
         # Implement sophisticated position sizing here
@@ -207,47 +248,61 @@ class Backtest:
 
         self._record_trade(order, commission)
 
+
     def _calculate_commission(self, order: Order) -> float:
         if callable(self.commission):
             return self.commission(order.quantity, order.price)
         return abs(order.quantity * order.price * self.commission)
 
     def _record_trade(self, order: Order, commission: float):
+        entry_price = order.price if order.quantity > 0 else self.portfolio.positions.get(order.symbol, Position(order.symbol, 0, 0, order.timestamp)).entry_price
+        exit_price = order.price if order.quantity < 0 else None
         self.trades.append({
             'timestamp': order.timestamp,
             'symbol': order.symbol,
             'quantity': order.quantity,
-            'price': order.price,
+            'entry_price': entry_price,
+            'exit_price': exit_price,
             'commission': commission
         })
 
     def _update_portfolio_value(self, row: Dict[str, Any]):
         prices = {row['symbol']: row['close']}
-        self.portfolio.update_value(row['timestamp'], prices)
+        self.portfolio.calculate_total_value(row['timestamp'], prices)
 
     def _process_pending_orders(self, row: Dict[str, Any]):
         # Implement logic to process limit and stop orders
         pass
 
     def calculate_performance_metrics(self):
-        metrics = PerformanceMetrics(self.equity_curve, self.trades, self.data_frequency)
-        self.results = {
-            'total_return': metrics.total_return(),
-            'annualized_return': metrics.annualized_return(),
-            'sharpe_ratio': metrics.sharpe_ratio(),
-            'sortino_ratio': metrics.sortino_ratio(),
-            'max_drawdown': metrics.max_drawdown(),
-            'win_rate': metrics.win_rate(),
-            'profit_factor': metrics.profit_factor(),
-            'calmar_ratio': metrics.calmar_ratio(),
-            'omega_ratio': metrics.omega_ratio(),
-            'expectancy': metrics.expectancy(),
-            'average_trade': metrics.average_trade(),
-            'average_win': metrics.average_win(),
-            'average_loss': metrics.average_loss(),
-            'profit_factor': metrics.profit_factor(),
-            'trade_count': len(self.trades),
-        }
+        if len(self.equity_curve) < 2:
+            self.results = {
+                'total_return': 0,
+                'annualized_return': 0,
+                'sharpe_ratio': 0,
+                'max_drawdown': 0,
+                'win_rate': 0,
+                'profit_factor': 0
+            }
+        else:
+            metrics = PerformanceMetrics(self.equity_curve, self.trades, self.data_frequency)
+            self.results = {
+                'total_return': metrics.total_return(),
+                'annualized_return': metrics.annualized_return(),
+                'sharpe_ratio': metrics.sharpe_ratio(),
+                'sortino_ratio': metrics.sortino_ratio(),
+                'max_drawdown': metrics.max_drawdown(),
+                'win_rate': metrics.win_rate(),
+                'profit_factor': metrics.profit_factor(),
+                'calmar_ratio': metrics.calmar_ratio(),
+                'omega_ratio': metrics.omega_ratio(),
+                'expectancy': metrics.expectancy(),
+                'average_trade': metrics.average_trade(),
+                'average_win': metrics.average_win(),
+                'average_loss': metrics.average_loss(),
+                'profit_factor': metrics.profit_factor(),
+                'trade_count': len(self.trades),
+            }
 
     def get_results(self) -> Dict[str, Any]:
         return self.results

@@ -1,8 +1,28 @@
 from abc import ABC, abstractmethod
-from typing import Union, Dict, Any, List
+from typing import Union, Dict, Any, List, Callable, Optional
 from dataclasses import dataclass
+from functools import wraps
+from enum import Enum
 import polars as pl
 import numpy as np
+import operator
+
+class LogicType(Enum):
+    AND = 'AND'
+    OR = 'OR'
+
+def logic_condition(logic_type: LogicType):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            conditions = func(self, *args, **kwargs)
+            if logic_type == LogicType.AND:
+                return all(conditions)
+            elif logic_type == LogicType.OR:
+                return any(conditions)
+        wrapper.logic_type = logic_type
+        return wrapper
+    return decorator
 
 class Signal(ABC):
     def __init__(self, name: str):
@@ -45,7 +65,11 @@ class Signal(ABC):
         return pl.DataFrame({
             f"{name}_adjust": pl.Series([1] * len(data))
         })
-    
+    def get_entry_condition(self) -> Optional['Condition']:
+        return None
+
+    def get_exit_condition(self) -> Optional['Condition']:
+        return None
     
 
 class Indicator(ABC):
@@ -69,15 +93,15 @@ class Indicator(ABC):
 class Position:
     def __init__(self, asset: str, quantity: float, entry_price: float, entry_time: Union[str, np.datetime64]):
         self.asset = asset
+        self.symbol = asset
         self.quantity = quantity
         self.entry_price = entry_price
         self.entry_time = entry_time
         self.exit_price = None
         self.exit_time = None
-
     def close(self, exit_price: float, exit_time: Union[str, np.datetime64]):
         self.exit_price = exit_price
-        self.exit_time = exit_time
+        self.exit_time = exit_time        
 
     def is_open(self) -> bool:
         return self.exit_price is None
@@ -110,6 +134,7 @@ class Portfolio:
         self.cash = initial_cash
         self.positions: Dict[str, Position] = {}
         self.closed_positions: List[Position] = []
+        self.total_value: float = initial_cash
 
     def open_position(self, asset: str, quantity: float, price: float, timestamp: Union[str, np.datetime64]):
         if asset in self.positions:
@@ -122,24 +147,27 @@ class Portfolio:
         self.cash -= cost
         self.positions[asset] = Position(asset, quantity, price, timestamp)
 
-    def close_position(self, asset: str, price: float, timestamp: Union[str, np.datetime64]):
+    def close_position(self, asset: str, quantity: float, price: float, timestamp: Union[str, np.datetime64]):
         if asset not in self.positions:
             raise ValueError(f"No open position for asset {asset}")
         
         position = self.positions[asset]
         position.close(price, timestamp)
-        self.cash += position.quantity * price
+        self.cash += quantity * price
         
         self.closed_positions.append(position)
         del self.positions[asset]
 
-    def calculate_total_value(self, current_prices: Dict[str, float]) -> float:
+    def calculate_total_value(self, timestamp: Union[str, np.datetime64], current_prices: Dict[str, float]) -> float:
         open_positions_value = sum(
             position.calculate_pnl(current_prices[asset]) + (position.quantity * position.entry_price)
             for asset, position in self.positions.items()
         )
-        return self.cash + open_positions_value
 
+        # Update total value
+        self.total_value = self.cash + open_positions_value
+        return self.cash + open_positions_value
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             'cash': self.cash,
@@ -252,12 +280,26 @@ class StrategyBase:
         self.entry_conditions: List[Condition] = []
         self.exit_conditions: List[Condition] = []
         self.actions: List[Action] = []
+        self.entry_logic: LogicType = LogicType.AND
+        self.exit_logic: LogicType = LogicType.AND
+
+    def set_entry_logic(self, logic_type: LogicType):
+        self.entry_logic = logic_type
+
+    def set_exit_logic(self, logic_type: LogicType):
+        self.exit_logic = logic_type
 
     def add_indicator(self, name: str, indicator: Indicator):
         self.indicators[name] = indicator
 
     def add_signal(self, name: str, signal: Signal):
         self.signals[name] = signal
+        entry_condition = signal.get_entry_condition()
+        exit_condition = signal.get_exit_condition()
+        if entry_condition:
+            self.entry_conditions.append(entry_condition)
+        if exit_condition:
+            self.exit_conditions.append(exit_condition)
 
     def add_position(self, position: Position):
         self.positions.append(position)
@@ -280,6 +322,16 @@ class StrategyBase:
 
     def add_exit_condition(self, condition: Condition):
         self.exit_conditions.append(condition)
+
+    @logic_condition(LogicType.AND)
+    def check_entry_conditions(self, data: Dict[str, Any]) -> bool:
+        conditions = [condition.evaluate(data) for condition in self.entry_conditions]
+        return all(conditions) if self.entry_logic == LogicType.AND else any(conditions)
+    
+    @logic_condition(LogicType.AND)
+    def check_exit_conditions(self, data: Dict[str, Any]) -> bool:
+        conditions = [condition.evaluate(data) for condition in self.exit_conditions]
+        return all(conditions) if self.exit_logic == LogicType.AND else any(conditions)
 
     def add_action(self, action: Action):
         self.actions.append(action)
@@ -313,3 +365,25 @@ class StrategyBase:
             'actions': [action.__dict__ for action in self.actions],
         }
     
+
+@dataclass
+class Condition:
+    indicator: str
+    operator: str
+    value: Union[float, str]
+
+    def evaluate(self, data: dict) -> bool:
+        op_map = {
+            '>': operator.gt,
+            '<': operator.lt,
+            '==': operator.eq,
+            '!=': operator.ne,
+            '>=': operator.ge,
+            '<=': operator.le
+        }
+        if self.indicator not in data:
+            return False
+        actual_value = data[self.indicator]
+        if actual_value is None:
+            return False  # Skip evaluation if the indicator value is None
+        return op_map[self.operator](actual_value, self.value)

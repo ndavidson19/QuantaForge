@@ -1,34 +1,33 @@
 import unittest
-from quantaforge.portfolio import Portfolio
-from quantaforge.order_execution import OrderExecution
-
-class MockOrderExecution(OrderExecution):
-    def __init__(self):
-        pass
-    def place_order(self, symbol, quantity, action):
-        pass
+from quantaforge.generics import Portfolio
+from datetime import datetime
 
 class TestPortfolio(unittest.TestCase):
     def setUp(self):
-        self.order_execution = MockOrderExecution()
-        self.portfolio = Portfolio(name='TestPortfolio', initial_cash=1000, order_execution=self.order_execution)
+        self.portfolio = Portfolio(initial_cash=10000)
 
-    def test_buy(self):
-        self.portfolio.buy('AAPL', 1, 100)
-        self.assertEqual(self.portfolio.cash, 900)
-        self.assertEqual(self.portfolio.positions['AAPL'], 1)
+    def test_open_position(self):
+        self.portfolio.open_position('AAPL', 10, 150, datetime.now())
+        self.assertEqual(self.portfolio.cash, 8500)
+        self.assertIn('AAPL', self.portfolio.positions)
+        self.assertEqual(self.portfolio.positions['AAPL'].quantity, 10)
 
-    def test_sell(self):
-        self.portfolio.buy('AAPL', 1, 100)
-        self.portfolio.sell('AAPL', 1, 120)
-        self.assertEqual(self.portfolio.cash, 1020)
-        self.assertEqual(self.portfolio.positions['AAPL'], 0)
+    def test_close_position(self):
+        open_time = datetime.now()
+        self.portfolio.open_position('AAPL', 10, 150, open_time)
+        close_time = datetime.now()
+        self.portfolio.close_position('AAPL', 10, 160, close_time)
+        self.assertEqual(self.portfolio.cash, 10100)
+        self.assertNotIn('AAPL', self.portfolio.positions)
 
-    def test_value(self):
-        self.portfolio.buy('AAPL', 1, 100)
-        current_prices = [110]  # Use list for current prices
-        value = self.portfolio.value(current_prices)
-        self.assertEqual(value, 1010)
+    def test_calculate_total_value(self):
+        self.portfolio.open_position('AAPL', 10, 150, datetime.now())
+        total_value = self.portfolio.calculate_total_value(datetime.now(), {'AAPL': 160})
+        self.assertEqual(total_value, 10100)
+
+    def test_insufficient_funds(self):
+        with self.assertRaises(ValueError):
+            self.portfolio.open_position('AAPL', 1000, 150, datetime.now())
 
 if __name__ == '__main__':
     unittest.main()
