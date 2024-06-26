@@ -3,10 +3,8 @@ from unittest.mock import Mock
 import polars as pl
 from quantaforge.strategy import Strategy
 from quantaforge.backtest import Backtest
-from quantaforge.portfolio import Portfolio
-from quantaforge.order_execution import SimulatedOrderExecution
-from quantaforge.indicator import Indicator
-from quantaforge.signal import Signal
+from quantaforge.generics import Portfolio, Indicator, Signal
+from quantaforge.order import SimulatedOrderExecution
 
 import logging
 
