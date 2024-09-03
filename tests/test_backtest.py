@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 import polars as pl
 from quantaforge.strategy import Strategy
-from quantaforge.backtest import Backtest
+from quantaforge.backtest_new import Backtest
 from quantaforge.generics import Portfolio, Position
 from quantaforge.indicators import SMA
 from quantaforge.signals import CrossOverSignal

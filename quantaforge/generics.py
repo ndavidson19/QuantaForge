@@ -387,3 +387,4 @@ class Condition:
         if actual_value is None:
             return False  # Skip evaluation if the indicator value is None
         return op_map[self.operator](actual_value, self.value)
+    

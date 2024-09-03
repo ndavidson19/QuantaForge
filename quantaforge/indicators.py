@@ -46,6 +46,35 @@ class EMA(Indicator):
     def from_dict(cls, config: Dict[str, Any]) -> 'EMA':
         return cls(span=config['span'], column=config.get('column', 'close'))
 
+class ATR(Indicator):
+    def __init__(self, window: int = 14, column: str = 'close'):
+        super().__init__(name=f"ATR_{window}")
+        self.window = window
+        self.column = column
+
+    def calculate(self, data: pl.DataFrame) -> pl.DataFrame:
+        tr = pl.DataFrame({
+            'h_l': data['high'] - data['low'],
+            'h_pc': (data['high'] - data['close'].shift()).abs(),
+            'l_pc': (data['low'] - data['close'].shift()).abs()
+        }).max(axis=1)
+
+        atr = tr.rolling_mean(self.window)
+
+        return data.with_columns(atr.alias(self.name))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            **super().to_dict(),
+            'window': self.window,
+            'column': self.column
+        }
+
+    @classmethod
+    def from_dict(cls, config: Dict[str, Any]) -> 'ATR':
+        return cls(window=config['window'], column=config.get('column', 'close'))
+    
+    
 class RSI(Indicator):
     def __init__(self, window: int = 14, column: str = 'close'):
         super().__init__(name=f"RSI_{window}")

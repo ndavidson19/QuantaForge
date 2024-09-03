@@ -1,0 +1,36 @@
+# File: config/simulation_config.yaml
+
+data_loader:
+  data_dir: 'data/historical'
+
+kafka:
+  bootstrap_servers:
+    - 'localhost:9092'
+
+simulations:
+  deterministic:
+    price_adjustment: 1.0
+  statistical:
+    garch:
+      method: 'garch'
+      p: 1
+      q: 1
+    mean_reversion:
+      method: 'mean_reversion'
+      long_term_mean: 100
+      reversion_speed: 0.1
+      volatility: 0.2
+    jump_diffusion:
+      method: 'jump_diffusion'
+      drift: 0.0001
+      volatility: 0.01
+      jump_intensity: 0.1
+      jump_mean: 0
+      jump_std: 0.02
+  general:
+    start_date: '2023-01-01'
+    end_date: '2023-12-31'
+    symbols:
+      - 'AAPL'
+      - 'GOOGL'
+      - 'MSFT'

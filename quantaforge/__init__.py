@@ -6,7 +6,7 @@ from .strategy import Strategy
 from .models import MLModule
 from .performance_metrics import PerformanceMetrics
 from .order import Order, OrderType
-from .indicators import SMA, EMA, RSI, MACD, BollingerBands
+from .indicators import SMA, EMA, RSI, MACD, BollingerBands, ATR
 from .riskmanagement import RiskManager
 
 __all__ = [
@@ -34,5 +34,6 @@ __all__ = [
     'RSI',
     'MACD',
     'BollingerBands',
+    'ATR',
     'RiskManager'
 ]

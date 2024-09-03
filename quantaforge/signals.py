@@ -3,8 +3,8 @@ from typing import Dict, Any
 from quantaforge.generics import Signal, Condition
 
 class CrossOverSignal(Signal):
-    def __init__(self, fast_indicator: str, slow_indicator: str):
-        super().__init__(name=f"Crossover_{fast_indicator}_{slow_indicator}")
+    def __init__(self, fast_indicator: str, slow_indicator: str, name: str = None):
+        super().__init__(name or f"Crossover_{fast_indicator}_{slow_indicator}")
         self.fast_indicator = fast_indicator
         self.slow_indicator = slow_indicator
 
@@ -43,21 +43,20 @@ class CrossOverSignal(Signal):
 
 
 class ThresholdSignal(Signal):
-    def __init__(self, indicator: str, buy_threshold: float, sell_threshold: float):
-        super().__init__(name=f"Threshold_{indicator}")
+    def __init__(self, indicator: str, buy_threshold: float, sell_threshold: float, name: str = None):
+        super().__init__(name or f"Threshold_{indicator}")
         self.indicator = indicator
         self.buy_threshold = buy_threshold
         self.sell_threshold = sell_threshold
 
     def generate(self, data: pl.DataFrame) -> pl.DataFrame:
-        buy_signal = (data[self.indicator] >= self.buy_threshold).cast(pl.Int8)
-        sell_signal = (data[self.indicator] <= self.sell_threshold).cast(pl.Int8)
+        buy_signal = (data[self.indicator] <= self.buy_threshold).cast(pl.Int8)
+        sell_signal = (data[self.indicator] >= self.sell_threshold).cast(pl.Int8)
         
         return pl.DataFrame({
             f"{self.name}_buy": buy_signal,
             f"{self.name}_sell": sell_signal
         })
-
     def to_dict(self) -> Dict[str, Any]:
         return {
             **super().to_dict(),

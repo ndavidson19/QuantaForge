@@ -9,7 +9,7 @@ from quantaforge.generics import StrategyBase, Condition, Action
 from quantaforge.indicators import Indicator
 from quantaforge.signals import Signal
 from quantaforge.generics import Position, RiskManagement, Portfolio
-from quantaforge.backtest import Backtest
+from quantaforge.backtest_new import Backtest
 from quantaforge.optimizer import Optimizer
 from quantaforge.report import Report
 

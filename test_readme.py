@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from datetime import datetime
 from quantaforge.strategy import Strategy
-from quantaforge.backtest import Backtest
+from quantaforge.backtest_new import Backtest
 from quantaforge.indicators import SMA, RSI
 from quantaforge.signals import CrossOverSignal, ThresholdSignal
 from quantaforge.generics import logic_condition, LogicType
@@ -31,7 +31,7 @@ strategy.add_signal("RSI_Threshold", ThresholdSignal("RSI_14", buy_threshold=30,
 # and it will exit a trade if all of the exit conditions are met.
 # You can change this behavior by using the logic_condition decorator as shown below.
 strategy.check_entry_conditions = logic_condition(LogicType.OR)(strategy.check_entry_conditions)
-strategy.check_exit_conditions = logic_condition(LogicType.AND)(strategy.check_exit_conditions)
+strategy.check_exit_conditions = logic_condition(LogicType.OR)(strategy.check_exit_conditions)
 
 # Create a backtest
 backtest = Backtest(name='VolatilityBreakoutBacktest', strategy=strategy, initial_capital=100000)
