@@ -11,3 +11,4 @@ ibis
 scikit-learn
 shap
 yfinance
+matplotlib
