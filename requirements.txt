@@ -10,3 +10,4 @@ pandas
 ibis
 scikit-learn
 shap
+yfinance
