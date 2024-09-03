@@ -29,6 +29,7 @@ setup(
         'polars',
         'Cython',
         'numpy',
+        'yfinance'
         'ib_insync',
         'confluent_kafka'
     ],
